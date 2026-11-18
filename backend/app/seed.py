@@ -1,7 +1,9 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.db import FIXTURES_DIR, connect
+from app.modules import ooo_hop_insert
 
 
 SCHEMA = """
@@ -62,10 +64,16 @@ EVENT_STATUS = {
 def init_db():
     conn = connect()
     conn.executescript(SCHEMA)
+    # 功能题（ooo_hop_insert）持久结构：独立时间线点表 + 序证明表
+    conn.executescript(ooo_hop_insert.SCHEMA)
     n = conn.execute("SELECT COUNT(*) AS c FROM waybills").fetchone()["c"]
     if n == 0:
         _seed_fixtures(conn)
-    conn.commit()
+        conn.commit()
+    elif conn.execute("SELECT COUNT(*) AS c FROM timeline_points").fetchone()["c"] == 0:
+        # 既有库升级：按 (event_ts, id) 回填持久时间线与序证明，刷新后不乱序
+        _backfill(conn)
+        conn.commit()
     conn.close()
 
 
@@ -92,30 +100,32 @@ def _seed_fixtures(conn):
                 hop.get("channel", "primary"),
             ),
         )
-    _refresh_projections(conn)
+    now = _now()
+    waybill_ids = [
+        r["id"]
+        for r in conn.execute("SELECT DISTINCT waybill_id AS id FROM hops ORDER BY waybill_id").fetchall()
+    ]
+    # 种子也走同一失败闭：有序物化 → 投影 → 状态证明 / 序证明
+    for wid in waybill_ids:
+        ooo_hop_insert.rebuild_waybill(conn, wid, "SEED", now)
 
 
-def _refresh_projections(conn):
-    rows = conn.execute(
-        """
-        SELECT h.waybill_id, h.id, h.event_code
-        FROM hops h
-        JOIN (
-          SELECT waybill_id, MAX(event_ts || '|' || id) AS mk
-          FROM hops WHERE retracted=0 AND channel='primary'
-          GROUP BY waybill_id
-        ) t ON t.waybill_id=h.waybill_id AND (h.event_ts || '|' || h.id)=t.mk
-        WHERE h.retracted=0 AND h.channel='primary'
-        """
-    ).fetchall()
-    for r in rows:
-        proj = EVENT_STATUS.get(r["event_code"], "未知")
-        conn.execute("UPDATE waybills SET status_proj=? WHERE id=?", (proj, r["waybill_id"]))
-        conn.execute(
-            "INSERT INTO status_proofs(waybill_id, last_hop_id, mapped_code, proj_value, created_at) VALUES (?,?,?,?,datetime('now'))",
-            (r["waybill_id"], r["id"], r["event_code"], proj),
-        )
+def _backfill(conn):
+    now = _now()
+    waybill_ids = [
+        r["id"]
+        for r in conn.execute(
+            "SELECT DISTINCT waybill_id AS id FROM hops "
+            "WHERE channel='primary' AND retracted=0 ORDER BY waybill_id"
+        ).fetchall()
+    ]
+    for wid in waybill_ids:
+        ooo_hop_insert.rebuild_waybill(conn, wid, "BACKFILL", now)
 
 
 def map_status(event_code: str) -> str:
     return EVENT_STATUS.get(event_code, "未知")
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

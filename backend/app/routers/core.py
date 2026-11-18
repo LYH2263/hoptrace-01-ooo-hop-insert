@@ -1,10 +1,16 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.db import connect
+from app.modules import ooo_hop_insert
 from app.services import ingest as ingest_svc
 from app.services import timeline as timeline_svc
 
 router = APIRouter(prefix="/api")
+
+
+class IngestRequest(BaseModel):
+    fixture_name: str | None = None
 
 
 @router.get("/overview")
@@ -49,10 +55,12 @@ def waybill_timeline(waybill_id: str):
             "SELECT * FROM status_proofs WHERE waybill_id=? ORDER BY id DESC LIMIT 1",
             (waybill_id,),
         ).fetchone()
+        order_proof = ooo_hop_insert.latest_order_proof(conn, waybill_id)
         return {
             "waybill": dict(wb),
             "hops": hops,
             "proof": dict(proof) if proof else None,
+            "order_proof": order_proof,
         }
     finally:
         conn.close()
@@ -83,8 +91,8 @@ def list_sidecar():
 
 
 @router.post("/ingest/run")
-def run_ingest():
-    return ingest_svc.run_batch()
+def run_ingest(req: IngestRequest | None = None):
+    return ingest_svc.run_batch(req.fixture_name if req else None)
 
 
 @router.get("/status-proofs")
@@ -101,5 +109,25 @@ def status_proofs(waybill_id: str | None = None):
                 "SELECT * FROM status_proofs ORDER BY id DESC LIMIT 50"
             ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/order-proofs")
+def order_proofs(waybill_id: str | None = None, batch_id: str | None = None):
+    """序证明只读接口：可按运单或本批写入键查询。"""
+    conn = connect()
+    try:
+        return ooo_hop_insert.query_order_proofs(conn, waybill_id=waybill_id, batch_id=batch_id)
+    finally:
+        conn.close()
+
+
+@router.get("/batches/{batch_id}/order-proofs")
+def batch_order_proofs(batch_id: str):
+    """按本批写入键查询序证明（批次视角的只读入口）。"""
+    conn = connect()
+    try:
+        return ooo_hop_insert.query_order_proofs(conn, batch_id=batch_id)
     finally:
         conn.close()

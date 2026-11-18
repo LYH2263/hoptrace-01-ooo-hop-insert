@@ -1,11 +1,6 @@
+from app.modules import ooo_hop_insert
+
+
 def list_primary(conn, waybill_id: str) -> list[dict]:
-    rows = conn.execute(
-        """
-        SELECT id, waybill_id, event_ts, location_code, event_code, seq, channel, retracted
-        FROM hops
-        WHERE waybill_id=? AND channel='primary' AND retracted=0
-        ORDER BY event_ts ASC, id ASC
-        """,
-        (waybill_id,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    """正式时间线读持久化点表 timeline_points：顺序在装载时已物化并维护，刷新后不乱序。"""
+    return ooo_hop_insert.list_timeline_points(conn, waybill_id)

@@ -344,3 +344,89 @@ a { color: inherit; text-decoration: none; }
   .brand-strip { grid-template-columns: 1fr; }
   .chip-nav { justify-content: flex-start; }
 }
+
+/* ooo_hop_insert：竖轴序检查 / 迟到插入标记 / 序证明 */
+.order-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 13px;
+  background: #eef5f0;
+  color: var(--mint);
+}
+.order-banner.bad { background: #f7e7e3; color: var(--danger); border-color: #d8a99f; }
+.order-banner em { font-style: normal; color: var(--muted); }
+.dot-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 4px rgba(47, 122, 98, 0.18);
+}
+.order-banner.bad .dot-pulse { background: var(--danger); box-shadow: 0 0 0 4px rgba(163, 59, 43, 0.18); }
+
+.hop-node .ord {
+  display: inline-block;
+  min-width: 30px;
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--forest);
+}
+.hop-node .arrival {
+  margin-left: 10px;
+  font-size: 11px;
+  color: #8a9a91;
+}
+.hop-node.late::before {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(163, 59, 43, 0.18);
+}
+.late-tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--danger);
+}
+.dot.late { background: var(--danger); box-shadow: 0 0 0 3px rgba(163, 59, 43, 0.25); }
+
+.id-chain { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+.chain-item { white-space: nowrap; }
+.chain-item i { margin: 0 3px; color: var(--line); font-style: normal; }
+.hash { color: var(--mint); font-size: 12px; }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.filter-row label { font-size: 13px; color: var(--muted); }
+.filter-row input {
+  margin-left: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.btn.amber { background: var(--amber); color: #1a1404; }
+.btn.amber:hover { background: #b87d08; }
+.result-box {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--forest);
+  color: #cfe3d7;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

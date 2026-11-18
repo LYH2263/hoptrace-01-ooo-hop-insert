@@ -1,6 +1,6 @@
 async function req(path, opts = {}) {
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers: { 'Content-Type': 'application/json' },
     ...opts,
   })
   if (!res.ok) {
@@ -17,7 +17,18 @@ export const api = {
   timeline: (id) => req(`/api/waybills/${encodeURIComponent(id)}/timeline`),
   quarantine: () => req('/api/quarantine'),
   sidecar: () => req('/api/sidecar'),
-  ingest: () => req('/api/ingest/run', { method: 'POST' }),
+  ingest: (fixtureName) =>
+    req('/api/ingest/run', {
+      method: 'POST',
+      body: JSON.stringify(fixtureName ? { fixture_name: fixtureName } : {}),
+    }),
   proofs: (waybillId) =>
     req(waybillId ? `/api/status-proofs?waybill_id=${encodeURIComponent(waybillId)}` : '/api/status-proofs'),
+  orderProofs: ({ waybillId, batchId } = {}) => {
+    const q = new URLSearchParams()
+    if (waybillId) q.set('waybill_id', waybillId)
+    if (batchId) q.set('batch_id', batchId)
+    const qs = q.toString()
+    return req(`/api/order-proofs${qs ? `?${qs}` : ''}`)
+  },
 }
